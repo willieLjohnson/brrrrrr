@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Basic Breakout HTML Game</title>
+  <meta charset="UTF-8">
+  <style>
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  </style>
+</head>
+<body>
+<canvas width="400" height="500" id="game"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const context = canvas.getContext('2d');
+
+const level1 = [
+  [],
+  [],
+  [],
+  [],
+  [],
+  [],
+  ['R','R','R','R','R','R','R','R','R','R','R','R','R','R'],
+  ['R','R','R','R','R','R','R','R','R','R','R','R','R','R'],
+  ['O','O','O','O','O','O','O','O','O','O','O','O','O','O'],
+  ['O','O','O','O','O','O','O','O','O','O','O','O','O','O'],
+  ['G','G','G','G','G','G','G','G','G','G','G','G','G','G'],
+  ['G','G','G','G','G','G','G','G','G','G','G','G','G','G'],
+  ['Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y'],
+  ['Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y']
+];
+
+const colorMap = {
+  'R': 'red',
+  'O': 'orange',
+  'G': 'green',
+  'Y': 'yellow'
+};
+
+const brickGap = 2;
+const brickWidth = 25;
+const brickHeight = 12;
+
+const wallSize = 12;
+const bricks = [];
+
+for (let row = 0; row < level1.length; row++) {
+  for (let col = 0; col < level1[row].length; col++) {
+    const colorCode = level1[row][col];
+
+    bricks.push({
+      x: wallSize + (brickWidth + brickGap) * col,
+      y: wallSize + (brickHeight + brickGap) * row,
+      color: colorMap[colorCode],
+      width: brickWidth,
+      height: brickHeight
+    });
+  }
+}
+
+const paddle = {
+  x: canvas.width / 2 - brickWidth / 2,
+  y: 440,
+  width: brickWidth,
+  height: brickHeight / 2,
+  dx: 0
+};
+
+class Ball {
+  constructor(x, y, width, height, speed, color = cyan) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.speed = speed;
+    this.dx = 0;
+    this.dy = 0;
+    this.color = color;
+  }
+
+  move() {
+    this.x += this.dx;
+    this.y += this.dy;
+  }
+
+  draw(c) {
+    c.fillStyle = this.color;
+    c.fillRect(this.x, this.y, this.width, this.height);
+  }
+}
+
+
+const balls = new Array();
+
+let shooting = false;
+let chambering = false;
+
+function collides(obj1, obj2) {
+  return obj1.x < obj2.x + obj2.width &&
+         obj1.x + obj1.width > obj2.x &&
+         obj1.y < obj2.y + obj2.height &&
+         obj1.y + obj1.height > obj2.y;
+}
+
+function loop() {
+  requestAnimationFrame(loop);
+  context.clearRect(0,0,canvas.width,canvas.height);
+
+
+  if (shooting && !chambering) {
+    const ball = new Ball(paddle.x + (paddle.width / 2) - 2.5, paddle.y - 15, 5, 5, 2);
+    ball.dy = -ball.speed;
+    ball.dx = (Math.random() < 0.5 ? -1 : 1) * ball.speed * Math.random() * 0.15;
+    balls.push(ball);
+    chambering = true;
+    setTimeout(function() {
+      chambering = false;
+    }, 200);
+  }
+  paddle.x += paddle.dx;
+
+  // prevent paddle from going through walls
+  if (paddle.x < wallSize) {
+    paddle.x = wallsize
+  }
+  else if (paddle.x + brickWidth > canvas.width - wallSize) {
+    paddle.x = canvas.width - wallSize - brickWidth;
+  }
+
+  for (let i = 0; i < balls.length; i++) {
+    const b = balls[i];
+    b.move()
+    if (b.x < wallSize) {
+      b.x = wallSize;
+      b.dx *= -1;
+    }
+    else if (b.x + b.width > canvas.width - wallSize) {
+      b.x = canvas.width - wallSize - b.width;
+      b.dx *= -1;
+    }
+    if (b.y < wallSize) {
+      b.y = wallSize;
+      b.dy *= -1;
+    }
+
+    if (b.y > canvas.height) {
+      balls.splice(i, 1);
+      delete b;
+    }
+
+    if (collides(b, paddle)) {
+      b.dy *= -1;
+      b.dx = (Math.random() < 0.5 ? -1 : 1) * b.speed * Math.random() * 0.15;
+      b.y = paddle.y - b.height;
+      b.color
+    }
+
+    b.draw(context)
+
+    for (let i = 0; i < bricks.length; i++) {
+      const brick = bricks[i];
+
+      if (collides(b, brick)) {
+        bricks.splice(i, 1);
+        if (b.y + b.height - b.speed <= brick.y ||
+            b.y >= brick.y + brick.height - b.speed) {
+          b.dy *= -1;
+        }
+        else {
+          b.dx *= -1;
+        }
+
+        break;
+      }
+    }
+    
+  }
+
+  context.fillStyle = 'lightgrey';
+  context.fillRect(0, 0, canvas.width, wallSize);
+  context.fillRect(0, 0, wallSize, canvas.height);
+  context.fillRect(canvas.width - wallSize, 0, wallSize, canvas.height);
+
+  bricks.forEach(function(brick) {
+    context.fillStyle = brick.color;
+    context.fillRect(brick.x, brick.y, brick.width, brick.height);
+  });
+
+  context.fillStyle = 'cyan';
+  context.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.which === 37) {
+    paddle.dx = -3;
+  }
+  else if (e.which === 39) {
+    paddle.dx = 3;
+  }
+  if (e.which === 32) {
+    shooting = true;
+  }
+});
+
+document.addEventListener('keyup', function(e) {
+  if (e.which === 37 || e.which === 39) {
+    paddle.dx = 0;
+  }
+  if (e.which === 32) {
+    shooting = false;
+  }
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
